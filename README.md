@@ -2,6 +2,12 @@
 
 A mobile-first Momentum Tracker PWA for logging focus sessions across multiple life areas.
 
+## Screenshots
+
+| Focus Timer | Trends | Settings |
+|:-----------:|:------:|:--------:|
+| ![Focus](docs/screenshots/focus.png) | ![Trends](docs/screenshots/trends.png) | ![Settings](docs/screenshots/settings.png) |
+
 ## Features
 
 - **One-Tap Focus Timer** — Start/stop with a single tap. Timer persists across browser close via localStorage.
