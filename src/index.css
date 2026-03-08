@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Prevent iOS bounce scroll in standalone PWA */
+html,
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  background-color: #0f172a;
+}
+
+/* Safe area insets for notched phones */
+#root {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 2px;
+}
