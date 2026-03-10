@@ -78,13 +78,20 @@ export default function Trends() {
           <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">
             Total Time
           </p>
-          <p className="text-white text-3xl font-bold mt-1 tabular-nums">
+          <p className="text-white text-3xl font-bold mt-1 tabular-nums leading-none">
             {totalSeconds >= 3600
               ? `${Math.floor(totalSeconds / 3600)}h`
               : totalSeconds >= 60
                 ? `${Math.floor(totalSeconds / 60)}m`
                 : `${totalSeconds}s`}
           </p>
+          {totalSeconds >= 60 && (
+            <p className="text-slate-500 text-xs tabular-nums mt-1">
+              {totalSeconds >= 3600
+                ? `${Math.floor((totalSeconds % 3600) / 60)}m ${totalSeconds % 60}s`
+                : `${totalSeconds % 60}s`}
+            </p>
+          )}
         </div>
       </div>
 
