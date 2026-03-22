@@ -53,4 +53,7 @@ export default defineConfig({
   resolve: {
     alias: { '@': '/src' },
   },
+  optimizeDeps: {
+    include: ['three', '@react-three/fiber', '@react-three/drei'],
+  },
 })

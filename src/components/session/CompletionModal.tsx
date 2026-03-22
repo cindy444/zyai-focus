@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, Bookmark, Trash2 } from 'lucide-react'
 import AreaSelector from './AreaSelector'
 import AreaLogInput from './AreaLogInput'
 import MotivationSlider from './MotivationSlider'
-import type { AreaName, CompletionFormState } from '@/types'
+import { useSessionStore } from '@/store/sessionStore'
+import type { AreaName, CompletionFormState, AreaPreset } from '@/types'
 
 interface CompletionModalProps {
   startTime: Date
@@ -39,11 +40,14 @@ export default function CompletionModal({
   onSave,
   onDiscard,
 }: CompletionModalProps) {
+  const { presets, addPreset, deletePreset } = useSessionStore()
   const [selectedAreas, setSelectedAreas] = useState<AreaName[]>([])
   const [areaLogs, setAreaLogs] = useState<Partial<Record<AreaName, string>>>({})
   const [motivationLevel, setMotivationLevel] = useState(3)
   const [struggleNote, setStruggleNote] = useState('')
   const [overallNotes, setOverallNotes] = useState('')
+  const [savingPreset, setSavingPreset] = useState(false)
+  const [presetName, setPresetName] = useState('')
 
   function handleAreaLog(area: AreaName, value: string) {
     setAreaLogs((prev) => ({ ...prev, [area]: value }))
@@ -51,6 +55,23 @@ export default function CompletionModal({
 
   function handleSave() {
     onSave({ selectedAreas, areaLogs, motivationLevel, struggleNote, overallNotes })
+  }
+
+  function applyPreset(preset: AreaPreset) {
+    setSelectedAreas(preset.areas)
+    setAreaLogs({})
+  }
+
+  function handleSavePreset() {
+    if (!presetName.trim() || selectedAreas.length === 0) return
+    const preset: AreaPreset = {
+      id: crypto.randomUUID(),
+      name: presetName.trim(),
+      areas: selectedAreas,
+    }
+    addPreset(preset)
+    setSavingPreset(false)
+    setPresetName('')
   }
 
   return (
@@ -73,7 +94,60 @@ export default function CompletionModal({
 
       {/* Content */}
       <div className="flex-1 px-4 py-5 flex flex-col gap-6">
+
+        {/* Presets row */}
+        {presets.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-slate-400 text-xs uppercase tracking-widest">Presets</p>
+            <div className="flex gap-2 flex-wrap">
+              {presets.map((preset) => (
+                <div key={preset.id} className="flex items-center gap-1 bg-slate-800 rounded-full pl-3 pr-1 py-1">
+                  <button
+                    onClick={() => applyPreset(preset)}
+                    className="text-slate-300 hover:text-white text-sm transition-colors"
+                  >
+                    {preset.name}
+                  </button>
+                  <button
+                    onClick={() => deletePreset(preset.id)}
+                    className="text-slate-600 hover:text-red-400 p-0.5 rounded-full transition-colors"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <AreaSelector selected={selectedAreas} onChange={setSelectedAreas} />
+
+        {/* Save as preset */}
+        {selectedAreas.length > 0 && (
+          <div>
+            {savingPreset ? (
+              <div className="flex gap-2">
+                <input
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSavePreset() }}
+                  placeholder="Preset name (e.g. Morning routine)"
+                  autoFocus
+                  className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+                <button onClick={handleSavePreset} className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-3 rounded-xl transition-colors">Save</button>
+                <button onClick={() => { setSavingPreset(false); setPresetName('') }} className="text-slate-400 hover:text-slate-200 text-sm px-2 transition-colors">Cancel</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setSavingPreset(true)}
+                className="flex items-center gap-1.5 text-slate-500 hover:text-indigo-400 text-xs transition-colors"
+              >
+                <Bookmark size={12} /> Save as preset
+              </button>
+            )}
+          </div>
+        )}
 
         {selectedAreas.length > 0 && (
           <div className="flex flex-col gap-4">

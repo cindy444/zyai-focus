@@ -6,6 +6,7 @@ import type { CompletionFormState, Session, SessionLog, BackupPayload } from '@/
 export interface SaveSessionArgs {
   startTime: Date
   endTime: Date
+  estimatedSeconds: number | null
   form: CompletionFormState
 }
 
@@ -14,15 +15,16 @@ export interface UseSessionReturn {
   error: string | null
   saveSession: (args: SaveSessionArgs) => Promise<void>
   exportBackup: () => void
+  importBackup: (jsonText: string) => { ok: boolean; error?: string }
 }
 
 export function useSession(): UseSessionReturn {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { addSession, addSessionLogs } = useSessionStore()
+  const { addSession, addSessionLogs, replaceAll } = useSessionStore()
 
   const saveSession = useCallback(
-    async ({ startTime, endTime, form }: SaveSessionArgs) => {
+    async ({ startTime, endTime, estimatedSeconds, form }: SaveSessionArgs) => {
       setSaving(true)
       setError(null)
 
@@ -41,6 +43,7 @@ export function useSession(): UseSessionReturn {
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
           duration_seconds: durationSeconds,
+          estimated_seconds: estimatedSeconds,
           overall_motivation: form.motivationLevel,
           overall_notes: overallNotes,
         }
@@ -85,13 +88,15 @@ export function useSession(): UseSessionReturn {
   )
 
   const exportBackup = useCallback(() => {
-    const { sessions, sessionLogs } = useSessionStore.getState()
+    const { sessions, sessionLogs, dailyCheckIns, customAreas, presets } = useSessionStore.getState()
 
     const payload: BackupPayload = {
       exportedAt: new Date().toISOString(),
       sessions,
       session_logs: sessionLogs,
-      daily_check_ins: [],
+      daily_check_ins: dailyCheckIns,
+      custom_areas: customAreas,
+      presets,
     }
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -107,5 +112,27 @@ export function useSession(): UseSessionReturn {
     URL.revokeObjectURL(url)
   }, [])
 
-  return { saving, error, saveSession, exportBackup }
+  const importBackup = useCallback(
+    (jsonText: string): { ok: boolean; error?: string } => {
+      try {
+        const payload = JSON.parse(jsonText) as BackupPayload
+        if (!Array.isArray(payload.sessions) || !Array.isArray(payload.session_logs)) {
+          return { ok: false, error: 'Invalid backup file format' }
+        }
+        replaceAll(
+          payload.sessions,
+          payload.session_logs,
+          payload.daily_check_ins ?? [],
+          payload.custom_areas,
+          payload.presets,
+        )
+        return { ok: true }
+      } catch {
+        return { ok: false, error: 'Could not parse backup file' }
+      }
+    },
+    [replaceAll]
+  )
+
+  return { saving, error, saveSession, exportBackup, importBackup }
 }
