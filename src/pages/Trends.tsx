@@ -1,9 +1,13 @@
 import { useState, useMemo } from 'react'
-import { X } from 'lucide-react'
+import { X, BarChart2, PieChart, TrendingUp } from 'lucide-react'
 import { useSessionStore, computeStreaks } from '@/store/sessionStore'
 import AreaBarChart from '@/components/trends/AreaBarChart'
+import AreaDonutChart from '@/components/trends/AreaDonutChart'
+import AreaLineChart from '@/components/trends/AreaLineChart'
 import SessionCard from '@/components/trends/SessionCard'
 import type { AreaName } from '@/types'
+
+type ChartView = 'bar' | 'donut' | 'line'
 
 type TimeRange = '7d' | '30d' | '90d' | 'all'
 
@@ -25,6 +29,7 @@ export default function Trends() {
   const { sessions, sessionLogs } = useSessionStore()
   const [selectedArea, setSelectedArea] = useState<AreaName | null>(null)
   const [timeRange, setTimeRange] = useState<TimeRange>('30d')
+  const [chartView, setChartView] = useState<ChartView>('bar')
 
   const { current: currentStreak, longest: longestStreak } = useMemo(
     () => computeStreaks(sessions),
@@ -180,15 +185,53 @@ export default function Trends() {
         )}
       </div>
 
-      {/* Area bar chart */}
+      {/* Chart section */}
       <div className="bg-slate-800 rounded-2xl p-4">
-        <p className="text-slate-300 font-semibold mb-1">Minutes per area</p>
-        <p className="text-slate-500 text-xs mb-4">Tap an area to filter sessions below</p>
-        <AreaBarChart
-          totals={totals}
-          selectedArea={selectedArea}
-          onAreaClick={handleAreaClick}
-        />
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-slate-300 font-semibold">
+            {chartView === 'line' ? 'Daily focus time' : 'Time per area'}
+          </p>
+          {/* Chart view toggle */}
+          <div className="flex bg-slate-700 rounded-lg p-0.5 gap-0.5">
+            {([
+              { view: 'bar',   Icon: BarChart2,  label: 'Bar'   },
+              { view: 'donut', Icon: PieChart,   label: 'Donut' },
+              { view: 'line',  Icon: TrendingUp, label: 'Line'  },
+            ] as { view: ChartView; Icon: React.ComponentType<{ size: number }>; label: string }[]).map(({ view, Icon, label }) => (
+              <button
+                key={view}
+                onClick={() => setChartView(view)}
+                aria-label={label}
+                className={`p-1.5 rounded-md transition-colors ${
+                  chartView === view
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Icon size={14} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-slate-500 text-xs mb-4">
+          {chartView === 'line'
+            ? 'Focus time per day — tap an area above to filter'
+            : 'Tap an area to filter sessions below'}
+        </p>
+        {chartView === 'bar' && (
+          <AreaBarChart totals={totals} selectedArea={selectedArea} onAreaClick={handleAreaClick} />
+        )}
+        {chartView === 'donut' && (
+          <AreaDonutChart totals={totals} selectedArea={selectedArea} onAreaClick={handleAreaClick} />
+        )}
+        {chartView === 'line' && (
+          <AreaLineChart
+            sessions={recentSessions}
+            sessionLogs={sessionLogs}
+            selectedArea={selectedArea}
+            timeRange={timeRange}
+          />
+        )}
       </div>
 
       {/* Session detail list */}
