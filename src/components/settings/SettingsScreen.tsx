@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
-import { Download, Upload, CheckCircle, AlertCircle, Plus, Trash2, Pencil } from 'lucide-react'
+import { Download, Upload, CheckCircle, AlertCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react'
 import { useSession } from '@/hooks/useSession'
 import { useSessionStore } from '@/store/sessionStore'
 import { hasSupabase } from '@/lib/supabaseClient'
+import ManualLogForm from './ManualLogForm'
 import type { AreaConfig } from '@/types'
 
 const EMOJI_OPTIONS = [
@@ -18,6 +19,8 @@ export default function SettingsScreen() {
   const [exportState, setExportState] = useState<'idle' | 'success' | 'error'>('idle')
   const [importState, setImportState] = useState<'idle' | 'success' | 'error'>('idle')
   const [importError, setImportError] = useState('')
+  const [showLogForm, setShowLogForm] = useState(false)
+  const [showFormatGuide, setShowFormatGuide] = useState(false)
 
   // Area management state
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
@@ -100,6 +103,26 @@ export default function SettingsScreen() {
       <div>
         <h2 className="text-white font-bold text-xl">Settings</h2>
         <p className="text-slate-400 text-sm mt-0.5">Manage your data and areas</p>
+      </div>
+
+      {/* Manual Log */}
+      <div className="bg-slate-800 rounded-2xl overflow-hidden">
+        <button
+          onClick={() => setShowLogForm((v) => !v)}
+          className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-700/40 transition-colors"
+        >
+          <ClipboardList size={18} className="text-indigo-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-slate-300 font-semibold">Log a Session</p>
+            <p className="text-slate-500 text-xs mt-0.5">Manually record a focus session you already completed</p>
+          </div>
+          {showLogForm ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+        </button>
+        {showLogForm && (
+          <div className="px-4 pb-4 border-t border-slate-700 pt-4">
+            <ManualLogForm />
+          </div>
+        )}
       </div>
 
       {/* Manage Areas */}
@@ -232,6 +255,67 @@ export default function SettingsScreen() {
               <><Upload size={18} />Import Backup</>
             )}
           </button>
+        </div>
+
+        {/* Backup format guide */}
+        <div className="border-t border-slate-700 pt-3">
+          <button
+            onClick={() => setShowFormatGuide((v) => !v)}
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-300 text-xs transition-colors"
+          >
+            {showFormatGuide ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            Backup file format reference
+          </button>
+
+          {showFormatGuide && (
+            <div className="mt-3 flex flex-col gap-3 text-xs text-slate-400">
+              <p>The backup is a <span className="text-slate-300 font-medium">.json</span> file with this top-level shape:</p>
+
+              <pre className="bg-slate-900 rounded-xl p-3 overflow-x-auto text-slate-300 leading-relaxed text-[11px]">{`{
+  "exportedAt": "2026-03-25T09:00:00.000Z",
+  "sessions": [ ... ],
+  "session_logs": [ ... ],
+  "daily_check_ins": [],
+  "custom_areas": [ ... ],
+  "presets": []
+}`}</pre>
+
+              <div className="flex flex-col gap-2">
+                <p className="text-slate-300 font-medium">sessions[ ] — each session object</p>
+                <pre className="bg-slate-900 rounded-xl p-3 overflow-x-auto text-slate-300 leading-relaxed text-[11px]">{`{
+  "id": "uuid-v4",
+  "created_at": "ISO 8601 datetime",
+  "start_time": "ISO 8601 datetime",
+  "end_time":   "ISO 8601 datetime",
+  "duration_seconds": 1800,
+  "estimated_seconds": 900,  // null if no goal set
+  "overall_motivation": 4,   // 1–5
+  "overall_notes": "Felt focused"
+}`}</pre>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <p className="text-slate-300 font-medium">session_logs[ ] — area notes per session</p>
+                <pre className="bg-slate-900 rounded-xl p-3 overflow-x-auto text-slate-300 leading-relaxed text-[11px]">{`{
+  "id": "uuid-v4",
+  "session_id": "uuid-v4",  // matches sessions[].id
+  "area_name": "Tech Playground",
+  "content": "Worked on zyai-focus"
+}`}</pre>
+                <p className="text-slate-500">One entry per area touched in that session. A session with no areas selected has zero log entries.</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <p className="text-slate-300 font-medium">custom_areas[ ] — your area list</p>
+                <pre className="bg-slate-900 rounded-xl p-3 overflow-x-auto text-slate-300 leading-relaxed text-[11px]">{`{ "name": "Tech Playground", "emoji": "💻" }`}</pre>
+                <p className="text-slate-500">If omitted on import, your current area list is kept.</p>
+              </div>
+
+              <p className="text-slate-600">
+                <span className="text-slate-500">Tip:</span> Export a backup first to see a real example with your own data.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

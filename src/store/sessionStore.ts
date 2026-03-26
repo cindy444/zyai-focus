@@ -69,6 +69,7 @@ interface SessionStore {
   addSessionLogs: (logs: SessionLog[]) => void
   updateSessionLog: (id: string, content: string) => void
   updateSessionNotes: (sessionId: string, notes: string) => void
+  deleteSession: (sessionId: string) => void
   setCustomAreas: (areas: AreaConfig[]) => void
   addPreset: (preset: AreaPreset) => void
   deletePreset: (id: string) => void
@@ -96,6 +97,11 @@ export const useSessionStore = create<SessionStore>()(
       updateSessionNotes: (sessionId, notes) =>
         set((state) => ({
           sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, overall_notes: notes } : s),
+        })),
+      deleteSession: (sessionId) =>
+        set((state) => ({
+          sessions: state.sessions.filter((s) => s.id !== sessionId),
+          sessionLogs: state.sessionLogs.filter((l) => l.session_id !== sessionId),
         })),
       setCustomAreas: (areas) => set({ customAreas: areas }),
       addPreset: (preset) =>

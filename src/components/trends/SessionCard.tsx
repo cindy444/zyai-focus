@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Clock, Zap, Pencil, Check, X } from 'lucide-react'
+import { Clock, Zap, Pencil, Check, X, Trash2 } from 'lucide-react'
 import type { Session, SessionLog } from '@/types'
 import { useSessionStore } from '@/store/sessionStore'
 
@@ -141,7 +141,8 @@ function EditableText({
 }
 
 export default function SessionCard({ session, logs }: SessionCardProps) {
-  const { updateSessionLog, updateSessionNotes } = useSessionStore()
+  const { updateSessionLog, updateSessionNotes, deleteSession } = useSessionStore()
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   return (
     <div className="bg-slate-800 rounded-2xl p-4 flex flex-col gap-3">
@@ -164,6 +165,31 @@ export default function SessionCard({ session, logs }: SessionCardProps) {
             <Zap size={12} />
             {MOTIVATION_EMOJIS[session.overall_motivation]} {session.overall_motivation}/5
           </span>
+          {confirmDelete ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => deleteSession(session.id)}
+                className="text-xs text-red-400 hover:text-red-300 font-medium"
+              >
+                Delete
+              </button>
+              <span className="text-slate-600 text-xs">·</span>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs text-slate-500 hover:text-slate-300"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-slate-600 hover:text-red-400 transition-colors"
+              aria-label="Delete session"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
         </div>
       </div>
 

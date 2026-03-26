@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { X, BarChart2, PieChart, TrendingUp } from 'lucide-react'
+import { X, BarChart2, PieChart, TrendingUp, ChevronDown } from 'lucide-react'
 import { useSessionStore, computeStreaks } from '@/store/sessionStore'
 import AreaBarChart from '@/components/trends/AreaBarChart'
 import AreaDonutChart from '@/components/trends/AreaDonutChart'
@@ -30,6 +30,7 @@ export default function Trends() {
   const [selectedArea, setSelectedArea] = useState<AreaName | null>(null)
   const [timeRange, setTimeRange] = useState<TimeRange>('30d')
   const [chartView, setChartView] = useState<ChartView>('bar')
+  const [showEstBreakdown, setShowEstBreakdown] = useState(false)
 
   const { current: currentStreak, longest: longestStreak } = useMemo(
     () => computeStreaks(sessions),
@@ -91,6 +92,30 @@ export default function Trends() {
     )
     return Math.round(totalDelta / estimatedSessions.length / 60)
   }, [estimatedSessions])
+
+  // Per-area estimation breakdown
+  const areaEstimationBreakdown = useMemo(() => {
+    if (estimatedSessions.length === 0) return []
+    const estimatedIds = new Set(estimatedSessions.map((s) => s.id))
+    const deltaMap = Object.fromEntries(estimatedSessions.map((s) => [s.id, s.duration_seconds - s.estimated_seconds!]))
+
+    // Accumulate delta per area
+    const byArea: Record<string, { totalDelta: number; count: number }> = {}
+    for (const log of sessionLogs) {
+      if (!estimatedIds.has(log.session_id)) continue
+      if (!byArea[log.area_name]) byArea[log.area_name] = { totalDelta: 0, count: 0 }
+      byArea[log.area_name].totalDelta += deltaMap[log.session_id]
+      byArea[log.area_name].count += 1
+    }
+
+    return Object.entries(byArea)
+      .map(([area, { totalDelta, count }]) => ({
+        area,
+        avgDeltaMins: Math.round(totalDelta / count / 60),
+        count,
+      }))
+      .sort((a, b) => b.avgDeltaMins - a.avgDeltaMins)
+  }, [estimatedSessions, sessionLogs])
 
   function handleAreaClick(area: AreaName) {
     setSelectedArea((prev) => (prev === area ? null : area))
@@ -157,30 +182,79 @@ export default function Trends() {
           </p>
         </div>
         {avgDeltaMins !== null && (
-          <div className="col-span-2 bg-slate-800 rounded-2xl p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">
-              Avg vs Estimate ({estimatedSessions.length} session{estimatedSessions.length !== 1 ? 's' : ''})
-            </p>
-            <p className={`text-3xl font-bold mt-1 tabular-nums ${
-              Math.abs(avgDeltaMins) < 2
-                ? 'text-green-400'
-                : avgDeltaMins > 0
-                  ? 'text-indigo-400'
-                  : 'text-amber-400'
-            }`}>
-              {avgDeltaMins === 0
-                ? 'On target'
-                : avgDeltaMins > 0
-                  ? `+${avgDeltaMins}m over`
-                  : `${Math.abs(avgDeltaMins)}m under`}
-            </p>
-            <p className="text-slate-500 text-xs mt-1">
-              {avgDeltaMins > 0
-                ? 'You tend to focus longer than planned'
-                : avgDeltaMins < 0
-                  ? 'You tend to stop earlier than planned'
-                  : 'Your estimates are spot on'}
-            </p>
+          <div className="col-span-2 bg-slate-800 rounded-2xl overflow-hidden">
+            {/* Summary — clickable */}
+            <button
+              onClick={() => setShowEstBreakdown((v) => !v)}
+              className="w-full text-left p-4 hover:bg-slate-700/40 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">
+                    Avg vs Estimate ({estimatedSessions.length} session{estimatedSessions.length !== 1 ? 's' : ''})
+                  </p>
+                  <p className={`text-3xl font-bold mt-1 tabular-nums ${
+                    Math.abs(avgDeltaMins) < 2
+                      ? 'text-green-400'
+                      : avgDeltaMins > 0
+                        ? 'text-indigo-400'
+                        : 'text-amber-400'
+                  }`}>
+                    {avgDeltaMins === 0
+                      ? 'On target'
+                      : avgDeltaMins > 0
+                        ? `+${avgDeltaMins}m over`
+                        : `${Math.abs(avgDeltaMins)}m under`}
+                  </p>
+                  <p className="text-slate-500 text-xs mt-1">
+                    {avgDeltaMins > 0
+                      ? 'You tend to focus longer than planned'
+                      : avgDeltaMins < 0
+                        ? 'You tend to stop earlier than planned'
+                        : 'Your estimates are spot on'}
+                  </p>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`text-slate-500 mt-1 shrink-0 transition-transform duration-200 ${showEstBreakdown ? 'rotate-180' : ''}`}
+                />
+              </div>
+            </button>
+
+            {/* Per-area breakdown — revealed on click */}
+            {showEstBreakdown && areaEstimationBreakdown.length > 0 && (
+              <div className="flex flex-col gap-2 border-t border-slate-700 px-4 py-3">
+                <p className="text-slate-500 text-xs font-medium uppercase tracking-wide">By area</p>
+                {(() => {
+                  const maxAbs = Math.max(...areaEstimationBreakdown.map((e) => Math.abs(e.avgDeltaMins)), 1)
+                  return areaEstimationBreakdown.map(({ area, avgDeltaMins: delta, count }) => {
+                    const isOver = delta > 0
+                    const isOnTarget = Math.abs(delta) < 2
+                    const barPct = Math.round((Math.abs(delta) / maxAbs) * 100)
+                    const label = isOnTarget ? 'on target' : isOver ? `+${delta}m over` : `${Math.abs(delta)}m under`
+                    const barColor = isOnTarget ? 'bg-green-500' : isOver ? 'bg-indigo-500' : 'bg-amber-500'
+                    const textColor = isOnTarget ? 'text-green-400' : isOver ? 'text-indigo-400' : 'text-amber-400'
+                    return (
+                      <div key={area} className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-300 text-sm truncate flex-1 mr-2">{area}</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-slate-600 text-xs tabular-nums">{count} session{count !== 1 ? 's' : ''}</span>
+                            <span className={`text-xs font-semibold tabular-nums w-20 text-right ${textColor}`}>{label}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${barColor} transition-all duration-500`}
+                            style={{ width: `${barPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+            )}
           </div>
         )}
       </div>
